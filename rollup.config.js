@@ -1,71 +1,64 @@
+// rollup.config.js
 import svelte from 'rollup-plugin-svelte';
 import resolve from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import livereload from 'rollup-plugin-livereload';
-import { terser } from 'rollup-plugin-terser';
-
-const production = !process.env.ROLLUP_WATCH;
 
 export default {
-	input: 'src/main.js',
-	output: {
-		sourcemap: true,
-		format: 'iife',
-		name: 'app',
-		file: 'public/build/bundle.js'
-	},
-	plugins: [
-		svelte({
-			// enable run-time checks when not in production
-			dev: !production,
-			// we'll extract any component CSS out into
-			// a separate file - better for performance
-			css: css => {
-				css.write('public/build/bundle.css');
-			}
-		}),
+  input: 'src/main.js',
+  output: {
+    file: 'public/bundle.js',
+    format: 'iife'
+  },
+  plugins: [
+    svelte({
+      // By default, all ".svelte" files are compiled
 
-		// If you have external dependencies installed from
-		// npm, you'll most likely need these plugins. In
-		// some cases you'll need additional configuration -
-		// consult the documentation for details:
-		// https://github.com/rollup/plugins/tree/master/packages/commonjs
-		resolve({
-			browser: true,
-			dedupe: ['svelte']
-		}),
-		commonjs(),
+      // You can restrict which files are compiled
+      // using `include` and `exclude`
 
-		// In dev mode, call `npm run start` once
-		// the bundle has been generated
-		!production && serve(),
+      // Optionally, preprocess components with svelte.preprocess:
+      // https://svelte.dev/docs#compile-time-svelte-preprocess
+      preprocess: {
+        style: ({ content }) => {
+          return transformStyles(content);
+        }
+      },
 
-		// Watch the `public` directory and refresh the
-		// browser on changes when not in production
-		!production && livereload('public'),
+      // Emit CSS as "files" for other plugins to process. default is true
+      emitCss: false,
 
-		// If we're building for production (npm run build
-		// instead of npm run dev), minify
-		production && terser()
-	],
-	watch: {
-		clearScreen: false
-	}
-};
+      // Warnings are normally passed straight to Rollup. You can
+      // optionally handle them here, for example to squelch
+      // warnings with a particular code
+      onwarn: (warning, handler) => {
+        // e.g. don't warn on <marquee> elements, cos they're cool
+        if (warning.code === 'a11y-distracting-elements') return;
 
-function serve() {
-	let started = false;
+        // let Rollup handle all other warnings normally
+        handler(warning);
+      },
 
-	return {
-		writeBundle() {
-			if (!started) {
-				started = true;
+      // You can pass any of the Svelte compiler options
+      compilerOptions: {
 
-				require('child_process').spawn('npm', ['run', 'start', '--', '--dev'], {
-					stdio: ['ignore', 'inherit', 'inherit'],
-					shell: true
-				});
-			}
-		}
-	};
+        // By default, the client-side compiler is used. You
+        // can also use the server-side rendering compiler
+        generate: 'ssr',
+
+        // ensure that extra attributes are added to head
+        // elements for hydration (used with generate: 'ssr')
+        hydratable: true,
+
+        // You can optionally set 'customElement' to 'true' to compile
+        // your components to custom elements (aka web elements)
+        customElement: false
+      }
+    }),
+    // see NOTICE below
+    resolve({
+      browser: true,
+      exportConditions: ['svelte'],
+      extensions: ['.svelte']
+    }),
+    // ...
+  ]
 }
